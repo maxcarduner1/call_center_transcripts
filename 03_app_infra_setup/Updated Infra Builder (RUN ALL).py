@@ -9,7 +9,7 @@ local_service_principal_name = 'local-service-principal-mc'
 
 group_name = 'mc-call-center-vibing'
 
-LAKEBASE_INSTANCE_NAME = 'mc-telco-call-center'
+LAKEBASE_INSTANCE_NAME = 'telco-call-center'
 
 LAKEBASE_DB_NAME = 'public'
 
@@ -89,38 +89,6 @@ conn.close()
 
 # COMMAND ----------
 
-# DBTITLE 1,create the table we need in the public schema
-
-
-# print("creating connection")
-# conn = lakebase.create_lakebase_connection(wc=w, instance=instance, db_name=LAKEBASE_DB_NAME, user=user_email)
-# conn.set_isolation_level(0) 
-# with conn.cursor() as cursor:
-#     print("creating table...")
-#     cursor.execute("CREATE EXTENSION IF NOT EXISTS databricks_auth")
-#     cursor.execute(f"""
-#         CREATE TABLE IF NOT EXISTS public.{username}_lists (
-#             id serial primary key,
-#             user_email TEXT NOT NULL,
-#             title TEXT NOT NULL,
-#             description TEXT,
-#             status TEXT NOT NULL DEFAULT 'pending',
-#             created_at TIMESTAMP NOT NULL DEFAULT now(),
-#             updated_at TIMESTAMP NOT NULL DEFAULT now()
-#         );
-#     """)
-#     cursor.execute(f"""GRANT ALL PRIVILEGES ON DATABASE {LAKEBASE_DB_NAME} TO PUBLIC""")
-#     cursor.execute(f"SELECT 1 FROM pg_roles WHERE rolname = '{group.display_name}'")
-#     role_exists = cursor.fetchone()
-#     if not role_exists:
-#         cursor.execute(f"SELECT databricks_create_role('{group.display_name}','GROUP');")
-#     cursor.execute(f"""GRANT ALL PRIVILEGES ON DATABASE {LAKEBASE_DB_NAME} TO \"{group.display_name}\"""")
-#     cursor.execute(f"""GRANT ALL PRIVILEGES ON SCHEMA public TO \"{group.display_name}\"""")
-#     cursor.execute(f"""GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{group.display_name}\"""")
-# conn.close()
-
-# COMMAND ----------
-
 # For your env:
 print(f"""
       COPY/PASTE THESE INTO YOUR .env FILE ON YOUR MACHINE!
@@ -160,4 +128,37 @@ with conn.cursor() as cursor:
     """)
     res = cursor.fetchall()
     print(res)
+conn.close()
+
+# COMMAND ----------
+
+# DBTITLE 1,create the table we need in the public.analtyics schema for human eval
+
+
+print("creating connection")
+conn = lakebase.create_lakebase_connection(wc=w, instance=instance, db_name=LAKEBASE_DB_NAME, user=user_email)
+conn.set_isolation_level(0) 
+with conn.cursor() as cursor:
+    print("creating table...")
+    cursor.execute("CREATE EXTENSION IF NOT EXISTS databricks_auth")
+    cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS public.analytics.human_evaluations (
+            evaluation_id SERIAL PRIMARY KEY,
+            call_id TEXT NOT NULL,
+            evaluator_name TEXT,
+            evaluation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            scorecard_overrides JSONB,
+            total_score_override INTEGER,
+            feedback_text TEXT,
+            UNIQUE(call_id)
+        );
+    """)
+    cursor.execute(f"""GRANT ALL PRIVILEGES ON DATABASE {LAKEBASE_DB_NAME} TO PUBLIC""")
+    cursor.execute(f"SELECT 1 FROM pg_roles WHERE rolname = '{group.display_name}'")
+    role_exists = cursor.fetchone()
+    if not role_exists:
+        cursor.execute(f"SELECT databricks_create_role('{group.display_name}','GROUP');")
+    cursor.execute(f"""GRANT ALL PRIVILEGES ON DATABASE {LAKEBASE_DB_NAME} TO \"{group.display_name}\"""")
+    cursor.execute(f"""GRANT ALL PRIVILEGES ON SCHEMA public TO \"{group.display_name}\"""")
+    cursor.execute(f"""GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{group.display_name}\"""")
 conn.close()
