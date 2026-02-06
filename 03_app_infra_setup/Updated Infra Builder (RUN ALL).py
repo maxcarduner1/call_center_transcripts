@@ -84,6 +84,14 @@ conn.close()
 
 # COMMAND ----------
 
+instance
+
+# COMMAND ----------
+
+
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC now sync table with lakebase from UC (transcripts)
 
@@ -107,28 +115,41 @@ print(sp.application_id + " <--- your local development service principal for ea
 
 # COMMAND ----------
 
-#also add group to lakebase permissions
+from databricks.sdk import WorkspaceClient
+from databricks.sdk.service.database import SyncedDatabaseTable, SyncedTableSpec, NewPipelineSpec, SyncedTableSchedulingPolicy
+
+# Initialize the Workspace client
+w = WorkspaceClient()
+
+# Create a synced table in a standard UC catalog
+synced_table = w.database.create_synced_database_table(
+    SyncedDatabaseTable(
+        name="cmegdemos_catalog.telco_call_center_analytics.call_center_scores_sync",  # Full three-part name
+        database_instance_name=instance.name,  # Required for standard catalogs
+        logical_database_name=LAKEBASE_DB_NAME,  # Required for standard catalogs
+        spec=SyncedTableSpec(
+            source_table_full_name="cmegdemos_catalog.telco_call_center_analytics.call_center_scores",
+            primary_key_columns=["call_id"],
+            scheduling_policy=SyncedTableSchedulingPolicy.SNAPSHOT,
+            create_database_objects_if_missing=True,  # Create database/schema if needed
+            new_pipeline_spec=NewPipelineSpec(
+                storage_catalog="cmegdemos_catalog",
+                storage_schema="telco_call_center_analytics"
+            )
+        ),
+    )
+)
+print(f"Created synced table: {synced_table.name}")
+
+# Check the status of a synced table
+synced_table_name = "cmegdemos_catalog.telco_call_center_analytics.call_center_scores_sync"
+status = w.database.get_synced_database_table(name=synced_table_name)
+print(f"Synced table status: {status.data_synchronization_status.detailed_state}")
+print(f"Status message: {status.data_synchronization_status.message}")
 
 # COMMAND ----------
 
-# THIS IS A TEST TO SEE IF YOU SUCCESSFULLY ADDED YOUR LOCAL SERVICE PRINCIPAL TO THE ABOVE GROUP PROPERLY
-
-from databricks.sdk import WorkspaceClient
-w2 = WorkspaceClient(
-    host = w.config.host,
-    client_id = DATABRICKS_CLIENT_ID,
-    client_secret = DATABRICKS_CLIENT_SECRET
-)
-
-conn = lakebase.create_lakebase_connection(wc=w2, instance=instance, db_name=LAKEBASE_DB_NAME, user=group_name)
-
-with conn.cursor() as cursor:
-    cursor.execute(f"""
-        SELECT * from public.analytics.transcriptions_scored_lbp_sync;
-    """)
-    res = cursor.fetchall()
-    print(res)
-conn.close()
+#also add group to lakebase permissions and superuser role for this group
 
 # COMMAND ----------
 
@@ -142,7 +163,7 @@ with conn.cursor() as cursor:
     print("creating table...")
     cursor.execute("CREATE EXTENSION IF NOT EXISTS databricks_auth")
     cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS public.analytics.human_evaluations (
+        CREATE TABLE IF NOT EXISTS public.telco_call_center_analytics.human_evaluations (
             evaluation_id SERIAL PRIMARY KEY,
             call_id TEXT NOT NULL,
             evaluator_name TEXT,
@@ -161,4 +182,26 @@ with conn.cursor() as cursor:
     cursor.execute(f"""GRANT ALL PRIVILEGES ON DATABASE {LAKEBASE_DB_NAME} TO \"{group.display_name}\"""")
     cursor.execute(f"""GRANT ALL PRIVILEGES ON SCHEMA public TO \"{group.display_name}\"""")
     cursor.execute(f"""GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{group.display_name}\"""")
+conn.close()
+
+# COMMAND ----------
+
+# THIS IS A TEST TO SEE IF YOU SUCCESSFULLY ADDED YOUR LOCAL SERVICE PRINCIPAL TO THE ABOVE GROUP PROPERLY
+
+
+from databricks.sdk import WorkspaceClient
+w2 = WorkspaceClient(
+    host = w.config.host,
+    client_id = DATABRICKS_CLIENT_ID,
+    client_secret = DATABRICKS_CLIENT_SECRET
+)
+
+conn = lakebase.create_lakebase_connection(wc=w2, instance=instance, db_name=LAKEBASE_DB_NAME, user=group_name)
+
+with conn.cursor() as cursor:
+    cursor.execute(f"""
+        SELECT * from public.telco_call_center_analytics.call_center_scores_sync LIMIT 10;
+    """)
+    res = cursor.fetchall()
+    print(res)
 conn.close()

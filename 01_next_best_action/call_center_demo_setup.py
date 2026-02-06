@@ -27,18 +27,7 @@
 # COMMAND ----------
 
 # DBTITLE 1,Untitled
-# Configuration
-# ADD YOUR CATALOG!
-CATALOG = CATALOG
-SCHEMA = SCHEMA
-
-# Create catalog and schema if they don't exist
-# spark.sql(f"CREATE CATALOG IF NOT EXISTS {CATALOG}")
-spark.sql(f"USE CATALOG {CATALOG}")
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS {SCHEMA}")
-spark.sql(f"USE SCHEMA {SCHEMA}")
-
-print(f"✅ Using catalog: {CATALOG}, schema: {SCHEMA}")
+# configure env file to set appropriate catalog/schema
 
 # COMMAND ----------
 
